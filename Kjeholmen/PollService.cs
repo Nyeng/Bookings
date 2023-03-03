@@ -1,33 +1,26 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using Kjeholmen.Services;
+using Kjeholmen.Services.Email;
+using Kjeholmen.Services.Sms;
 using Newtonsoft.Json.Linq;
 
 namespace Kjeholmen;
 
 public class PollService
 {
-    private readonly HttpClient _client;
+    private readonly ApiClient _client;
     private string _infoText;
-    private readonly SmsService _smsService;
     private readonly EmailService _emailService;
+    private readonly SmsService _smsService;
 
-    public PollService()
+    public PollService(ApiClient client, IEmailServiceOptions emailServiceOptions, ISmsServiceOptions smsServiceOptions)
     {
         _infoText = "";
-        _client = SetupHttpClient();
-        _smsService = new SmsService();
-        _emailService = new EmailService();
-    }
-
-    private static HttpClient SetupHttpClient()
-    {
-        var httpClient = new HttpClient();
-        httpClient.Timeout = new TimeSpan(0, 0, 0, 30);
-        const string token = "invalidtoken";
-        httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
-        httpClient.BaseAddress = new Uri("https://api.oslofjorden.org/");
-        return httpClient;
+        _client = client;
+        _emailService = new EmailService(emailServiceOptions);
+        _smsService = new SmsService(smsServiceOptions);
     }
 
     public async Task PollOsloFjorden()
@@ -40,11 +33,11 @@ public class PollService
         while (statuskode is not (200 or 201 or 202))
         {
             // break;
-            var pollingRateInMinutes = 1000 * 60;
+            var pollingRateMilliseconds = 1000 * 60;
 
             try
             {
-                var respons = _client.PostAsync("api/booking/",
+                var respons = _client.HttpClient.PostAsync("api/booking/",
                     new StringContent(requestPayload, Encoding.UTF8, "application/json"));
 
                 var responsContent = respons.Result.Content.ReadAsStringAsync().Result;
@@ -52,7 +45,7 @@ public class PollService
 
                 if (statuskode is >= 300 or < 200)
                     Console.WriteLine("Fikk statuskode " + statuskode + " og tilbakemelding: " + responsContent +
-                                      "\nPrøver på nytt om " + pollingRateInMinutes / 1000 / 60 + " minutt");
+                                      "\nPrøver på nytt om " + pollingRateMilliseconds / 1000 / 60 + " minutt");
 
                 if (statuskode is 400)
                 {
@@ -62,10 +55,10 @@ public class PollService
                             "Exit loop, something's fishy or doesn't work! (New 400 bad request exception, notify Vegard))";
                         Console.WriteLine(
                             "Exit loop, something's fishy or doesn't work! (New 400 bad request exception, notify Vegard))");
-                        await SmsService.SendSmsVegard(_infoText);
+                        await _smsService.SendSmsVegard(_infoText);
                         break;
                     }
-                    
+
                     //Keep looping
                 }
 
@@ -73,9 +66,19 @@ public class PollService
                 {
                     Console.WriteLine("Henter nytt token");
                     //Fetch new token
-                    _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetToken());
+                    var resp = await _client.GetToken();
+
+                    if (resp.StatusCode != HttpStatusCode.OK) 
+                        throw new Exception("Unable to login using the current credentials");
+
+                    var tokenContent = resp.Content.ReadAsStringAsync().Result;
+                    var responseObj = JObject.Parse(tokenContent);
+                    var accessToken = (string)responseObj["access_token"];
+
+                    _client.HttpClient.DefaultRequestHeaders.Authorization =
+                        new AuthenticationHeaderValue("Bearer", accessToken);
                     //Don't sleep when logged out
-                    pollingRateInMinutes = 100;
+                    pollingRateMilliseconds = 100;
                 }
 
                 else if (statuskode is > 199 and < 300)
@@ -84,8 +87,16 @@ public class PollService
 
                     try
                     {
-                        await SmsService.SendSms(responsContent);
-                        await EmailService.SendEmailNotification();
+                        var smsTask = _smsService.SendSmsEmmaVegard(responsContent);
+                        var emailTask = _emailService.SendEmailNotification();
+
+                        await Task.WhenAll(smsTask, emailTask);
+
+                        var emailResponse = smsTask.Result;
+                        var smsResponse = emailTask.Result;
+
+                        Console.WriteLine(
+                            $"Email and sms response: {emailResponse.message} \nsms resp: {smsResponse.StatusCode} {smsResponse.Body} ");
                     }
                     catch (Exception e)
                     {
@@ -100,25 +111,7 @@ public class PollService
                 Console.WriteLine($"failed with something {e.Message}");
             }
 
-            Thread.Sleep(pollingRateInMinutes);
+            Thread.Sleep(pollingRateMilliseconds);
         }
-    }
-
-    private string GetToken()
-    {
-        Console.WriteLine("Ikke autentisert, logger inn på nytt");
-        const string requestBody = "{\"email\":\"emma.j.lennox@gmail.com\",\"password\":\"Psykinst1993!\"}";
-        //Login
-        var tokenresponse = _client.PostAsync("api/user/token/",
-            new StringContent(requestBody, Encoding.UTF8, "application/json")).Result;
-
-        if (tokenresponse.StatusCode != HttpStatusCode.OK)
-            throw new Exception("Could not get token");
-
-        var tokenContent = tokenresponse.Content.ReadAsStringAsync().Result;
-        var responseObj = JObject.Parse(tokenContent);
-        var accessToken = (string)responseObj["access_token"];
-
-        return accessToken;
     }
 }
