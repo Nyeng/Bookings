@@ -26,6 +26,11 @@ public class PollService
 
     public async Task PollOsloFjorden(string phoneOne, string phoneTwo, string fullName)
     {
+        var date = DateTime.Now;
+        var now = date.ToString("HH:mm:ss");
+
+        Console.WriteLine("Starting poll service at: " + now);
+
         var requestPayload =
             $"{{\"id\":\"0ab32230-445c-45b8-b76c-a84b44b291d3\",\"isManual\":false,\"bookingCategory\":\"Barnefamilie\",\"numberOfAdult\":10,\"numberOfChildren\":2,\"checkInDate\":\"2023-06-16\",\"checkOutDate\":\"2023-06-18\",\"cabin\":{{\"title\":\"Kjeholmen\",\"defaultImageUrl\":\"https://oslofjorden.imgix.net/cabin/d8ce52d8-ad08-4d61-afad-e78e7949d3a3/852cf2cb-9426-454d-acf8-3ecfc1f6bfa6.jpg\",\"id\":\"d8ce52d8-ad08-4d61-afad-e78e7949d3a3\"}},\"user\":{{\"id\":\"1e7bb797-15bf-4c24-ad04-f303b10cc8b3\",\"email\":\"{_client.Username}\",\"name\":\"{fullName}\",\"phoneNumber\":\"{phoneTwo}\"}},\"price\":{{\"currency\":\"NOK\",\"comment\":\"Summary: 2 days x 3000NOK/day = 6000NOK\",\"price\":6000,\"discount\":0,\"total\":6000}}}}";
 
@@ -47,9 +52,12 @@ public class PollService
                 var formattedTime = currentTime.ToString("HH:mm:ss");
 
                 if (statuskode is >= 300 or < 200)
-                    Console.WriteLine("Fikk statuskode " + statuskode + " og tilbakemelding: " + responsContent +
-                                      "\nPrøver på nytt om " + pollingRateMilliseconds / 1000 / 60 +
-                                      $" minutt. Tidspunkt: {formattedTime} ");
+                    if (DateTime.Now.Minute % 10 == 0)
+                    {
+                        Console.WriteLine("Fikk statuskode " + statuskode + " og tilbakemelding: " + responsContent +
+                                          "\nPrøver på nytt om " + pollingRateMilliseconds / 1000 / 60 +
+                                          $" minutt. Tidspunkt: {formattedTime} ");
+                    }
 
                 if (statuskode is 400)
                 {
@@ -116,4 +124,6 @@ public class PollService
             Thread.Sleep(pollingRateMilliseconds);
         }
     }
+    
+    
 }
