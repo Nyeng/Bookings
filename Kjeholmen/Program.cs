@@ -12,53 +12,49 @@ public abstract class Program
 {
     private static PollService? _pollService;
 
+
     public static async Task Main()
     {
         DotEnv.Load();
         DotEnv.Load(options: new DotEnvOptions(ignoreExceptions: false));
-        
-        var emailApiKey = Environment.GetEnvironmentVariable("EMAIL_API_KEY") ??
-                          throw new Exception("Email API Key not set!");
-        
-        var twilioSid = Environment.GetEnvironmentVariable("TWILIO_SID") ??
-                        throw new Exception("TWILIO_SID not set!");
-        
-        var twilioAuthToken = Environment.GetEnvironmentVariable("TWILIO_AUTH_TOKEN") ??
-                              throw new Exception("TWILIO_SID not set!");
-        
-        var twilioPhoneNumber = Environment.GetEnvironmentVariable("TWILIO_PHONE_NUMBER") ??
-                                throw new Exception("TWILIO_PHONE_NUMBER not set!");
-        
-        var username = Environment.GetEnvironmentVariable("USER_NAME_OSLOFJORD") ??
-                       throw new Exception("Username not set!");
-        
-        var password = Environment.GetEnvironmentVariable("PASSWORD_OSLOFJORD") ??
-                       throw new Exception("Password not set!");
 
-        var apiClient = new ApiClient(username,password);
-        IEmailServiceOptions emailOptions = new EmailServiceOptions(emailApiKey);
+        // Retrieve environment variables
+        var emailApiKey = GetRequiredEnvVariable("EMAIL_API_KEY");
+        var twilioSid = GetRequiredEnvVariable("TWILIO_SID");
+        var twilioAuthToken = GetRequiredEnvVariable("TWILIO_AUTH_TOKEN");
+        var twilioPhoneNumber = GetRequiredEnvVariable("TWILIO_PHONE_NUMBER");
+        var username = GetRequiredEnvVariable("USER_NAME_OSLOFJORD");
+        var password = GetRequiredEnvVariable("PASSWORD_OSLOFJORD");
+        var phoneOne = GetRequiredEnvVariable("PHONE_RECIPIENT_ONE");
+        var phoneTwo = GetRequiredEnvVariable("PHONE_RECIPIENT_TWO");
+        var fullName = GetRequiredEnvVariable("FULL_NAME");
 
-        ISmsServiceOptions smsOptions = new SmsServiceOptions(twilioSid, twilioAuthToken, twilioPhoneNumber);
-        var smSservice = new SmsService(smsOptions);
+        // Create dependencies
+        var apiClient = new ApiClient(username, password);
+        var emailOptions = new EmailServiceOptions(emailApiKey);
+        var smsOptions = new SmsServiceOptions(twilioSid, twilioAuthToken, twilioPhoneNumber);
+        var smsService = new SmsService(smsOptions);
 
+        // Create PollService instance using dependencies
         _pollService = new PollService(apiClient, emailOptions, smsOptions);
-        
-        var phoneOne = Environment.GetEnvironmentVariable("PHONE_RECIPIENT_ONE") ??
-                       throw new Exception("Phone number not set for first recipient");
 
-        var phoneTwo = Environment.GetEnvironmentVariable("PHONE_RECIPIENT_TWO") ??
-                       throw new Exception("Phone number not set for second receiver");
-        
-        var fullName = Environment.GetEnvironmentVariable("FULL_NAME") ??
-                       throw new Exception("Phone number not set for second receiver");
-        
+        // Call PollOsloFjorden method
+        await _pollService.PollOsloFjorden(phoneOne, phoneTwo, fullName);
 
-        await _pollService.PollOsloFjorden(phoneOne, phoneTwo,fullName);
-
-
-        var resp = await smSservice.SendSms("Program stopped for some reason! You might want to check it out",
-            phoneOne
-        );
+        // Send SMS message
+        var resp = await smsService.SendSms("Program stopped for some reason! You might want to check it out",
+            phoneOne);
         Console.WriteLine(resp.Body + "\n" + resp.Status);
+    }
+
+    // Helper method to retrieve environment variables
+    private static string GetRequiredEnvVariable(string variableName)
+    {
+        var value = Environment.GetEnvironmentVariable(variableName);
+        if (string.IsNullOrEmpty(value))
+        {
+            throw new Exception($"Environment variable {variableName} not set!");
+        }
+        return value;
     }
 }
