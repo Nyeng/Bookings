@@ -3,5 +3,6 @@
   &lt;TestAncestor&gt;&#xD;
     &lt;TestId&gt;xUnit::C5B451A0-C4EE-4AF1-9D6B-99D205339C26::net7.0::Kjeholmen.UnitTests.TestPollService.TestAuthentication&lt;/TestId&gt;&#xD;
     &lt;TestId&gt;xUnit::C5B451A0-C4EE-4AF1-9D6B-99D205339C26::net7.0::Kjeholmen.UnitTests.TestSmsClient.sendDummySms&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::C5B451A0-C4EE-4AF1-9D6B-99D205339C26::net7.0::Kjeholmen.UnitTests.TestEmailClient.TestClientWithInvalidApiKey&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

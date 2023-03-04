@@ -9,8 +9,6 @@ namespace Kjeholmen.UnitTests;
 public class TestSmsClient
 {
     private readonly ITestOutputHelper _testOutputHelper;
-
-
     public TestSmsClient(ITestOutputHelper testOutputHelper)
     {
         DotEnv.Load();
@@ -25,8 +23,8 @@ public class TestSmsClient
     {
         try
         {
-            var smsService = new SmsService(new SmsServiceOptions("dummy", "dummyAuth"));
-            await smsService.SendSmsVegard("Hei");
+            var smsService = new SmsService(new SmsServiceOptions("dummy", "dummyAuth", "duiummy"));
+            await smsService.SendSms("Hei", "dummyReceiver");
         }
         catch (ApiException e)
         {

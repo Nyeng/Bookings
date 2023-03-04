@@ -1,15 +1,21 @@
 using System.Text;
 
-namespace Kjeholmen.Services;
+namespace Kjeholmen.Services.Api;
 
 public class ApiClient
 {
     public readonly HttpClient HttpClient;
 
-    public ApiClient()
+    public readonly string Username;
+    public readonly string Password;
+
+    public ApiClient(string username, string password)
     {
         HttpClient = new HttpClient();
         HttpClient = SetupHttpClient();
+
+        Username = username;
+        Password = password;
     }
 
     private HttpClient SetupHttpClient()
@@ -25,12 +31,7 @@ public class ApiClient
     {
         Console.WriteLine("Ikke autentisert, logger inn på nytt");
 
-        var username = Environment.GetEnvironmentVariable("USER_NAME_OSLOFJORD") ??
-                       throw new Exception("Username not set!");
-        var password = Environment.GetEnvironmentVariable("PASSWORD_OSLOFJORD") ??
-                       throw new Exception("Password not set!");
-
-        var requestBody = $"{{\"email\":\"{username}\",\"password\":\"{password}\"}}";
+        var requestBody = $"{{\"email\":\"{Username}\",\"password\":\"{Password}\"}}";
 
         //Login
         var tokenresponse = HttpClient.PostAsync("api/user/token/",

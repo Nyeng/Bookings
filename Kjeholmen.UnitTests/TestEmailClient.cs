@@ -8,13 +8,8 @@ namespace Kjeholmen.UnitTests;
 
 public class TestEmailClient
 {
-    private readonly ITestOutputHelper _testOutputHelper;
     private EmailService _emailService;
 
-    public TestEmailClient(ITestOutputHelper testOutputHelper)
-    {
-        _testOutputHelper = testOutputHelper;
-    }
 
     [Fact]
     public async Task TestClientWithInvalidApiKey()
