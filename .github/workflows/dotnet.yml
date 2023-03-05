@@ -23,7 +23,7 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
       - name: Change directory
-        run: cd .\Kjeholmen
+        run: cd Kjeholmen
       - name: Print directory
         run: pwd
       - name: 'Create env file'
