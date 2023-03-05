@@ -23,7 +23,7 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Change directory
-      run: cd Kjeholmen
+      run: cd "${{ github.workspace }}/Kjeholmen"
     - name: 'Create env file'
       run: |
         echo "${{ secrets.ENV_FILE }}" > .env
