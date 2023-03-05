@@ -15,9 +15,11 @@ public class PollService
     private string _infoText;
     private readonly EmailService _emailService;
     private readonly SmsService _smsService;
+    public ISmsServiceOptions smsOptions;
 
     public PollService(ApiClient client, IEmailServiceOptions emailServiceOptions, ISmsServiceOptions smsServiceOptions)
     {
+        smsOptions = smsServiceOptions;
         _infoText = "";
         _client = client;
         _emailService = new EmailService(emailServiceOptions);
