@@ -19,7 +19,7 @@ public abstract class Program
         try
         {
             DotEnv.Load();
-            DotEnv.Load(options: new DotEnvOptions(ignoreExceptions: false));
+            DotEnv.Load(options: new DotEnvOptions(ignoreExceptions: false, probeForEnv: true));
 
             // Retrieve environment variables
             var emailApiKey = GetRequiredEnvVariable("EMAIL_API_KEY");
