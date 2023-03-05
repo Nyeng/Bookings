@@ -26,6 +26,8 @@ jobs:
         run: cd Kjeholmen
       - name: Print directory
         run: pwd
+      - name: See what's in the dir
+        run: ls
       - name: 'Create env file'
         run: |
           echo "${{ secrets.ENV_FILE }}" > .env
