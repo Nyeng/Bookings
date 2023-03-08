@@ -38,55 +38,47 @@ public class PollService
 
         var requestPayload = GeneratePayLoad(bookingId, fullName, phoneTwo);
 
+        await PollUntilBookingIsSuccessful(requestPayload, phoneOne, phoneTwo, bookingId);
+    }
+
+    private async Task PollUntilBookingIsSuccessful(string requestPayload, string phoneOne, string phoneTwo,
+        string bookingId)
+    {
         var statuskode = HttpStatusCode.BadRequest.GetHashCode();
 
         while (statuskode is not (200 or 201 or 202))
         {
-            var pollingRateMinutes = 1000 * 60;
-
             try
             {
+                var currentTime = DateTime.Now;
+                var formattedTime = currentTime.ToString("HH:mm:ss");
+                Console.WriteLine($"{formattedTime} - Prøver å polle Kjeholmen API");
+
                 var respons = _client.HttpClient.PostAsync("api/booking/",
                     new StringContent(requestPayload, Encoding.UTF8, "application/json"));
 
                 var responsContent = respons.Result.Content.ReadAsStringAsync().Result;
                 statuskode = respons.Result.StatusCode.GetHashCode();
 
-                var currentTime = DateTime.Now;
-                var formattedTime = currentTime.ToString("HH:mm:ss");
-
-                if (statuskode is >= 300 or < 200)
-                    // if (DateTime.Now.Minute % 10 == 0)
-                {
-                    Console.WriteLine("Fikk statuskode " + statuskode + " og tilbakemelding: " + responsContent +
-                                      "\nPrøver på nytt om " + pollingRateMinutes / 1000 / 60 +
-                                      $" minutt. Tidspunkt: {formattedTime} ");
-                }
-
-                if (statuskode is 400)
-                {
-                    if (!responsContent.Contains("Booking is allowed only 48 hours"))
-                    {
-                        const string text =
-                            "Exit loop, something's fishy or doesn't work! (New 400 bad request exception, notify Vegard))";
-                        _infoText = text;
-                        Console.WriteLine(text);
-                        await _smsService.SendSms(_infoText, phoneOne);
-                        break;
-                    }
-                    //Keep looping
-                }
-
                 switch (statuskode)
                 {
                     case 401:
-                    {
                         await HandleUnauthorized();
-                        pollingRateMinutes = 100;
                         break;
-                    }
+                    case 400:
+                        await HandleBadRequest(responsContent, phoneOne);
+                        //error still present, sleep a lil longer
+                        Console.WriteLine("Fikk tilbakemelding: " + responsContent +
+                                          "\nPrøver på nytt om 60 sekunder");
+
+                        Thread.Sleep(60000);
+                        break;
                     case > 199 and < 300:
                         await HandleSuccessfulBooking(bookingId, phoneOne, phoneTwo);
+                        break;
+                    default:
+                        Console.WriteLine($"Ukjent feil: {statuskode}, sover i fem sekunder og prøver igjen");
+                        Thread.Sleep(5000);
                         break;
                 }
             }
@@ -94,8 +86,18 @@ public class PollService
             {
                 Console.WriteLine($"failed with something {e.Message}");
             }
+        }
+    }
 
-            Thread.Sleep(pollingRateMinutes);
+    private async Task HandleBadRequest(string responseContent, string phoneOne)
+    {
+        if (!responseContent.Contains("Booking is allowed only 48 hours"))
+        {
+            const string text =
+                "Exit loop, something's fishy or doesn't work! (New 400 bad request exception, notify Vegard))";
+            _infoText = text;
+            Console.WriteLine(text);
+            await _smsService.SendSms(_infoText, phoneOne);
         }
     }
 
