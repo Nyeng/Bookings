@@ -1,0 +1,8 @@
+{
+  "id": "{id}",
+  "totalAmount": 6000,
+  "currency": "NOK",
+  "type": "Booking",
+  "serviceId": "{bookingId}"
+}
+

@@ -1,0 +1,27 @@
+{
+  "id": "{bookingId}",
+  "isManual": false,
+  "bookingCategory": "Forening",
+  "numberOfAdult": 1,
+  "numberOfChildren": 1,
+  "checkInDate": "2023-03-10",
+  "checkOutDate": "2023-03-11",
+  "cabin": {
+    "title": "Bestemorstua",
+    "defaultImageUrl": "https://oslofjorden.imgix.net/cabin/55158a2e-ec95-497a-8340-39b3196f919f/03a873fb-7e55-4e4d-8d83-ab8af2ca0631.jpg",
+    "id": "55158a2e-ec95-497a-8340-39b3196f919f"
+  },
+  "user": {
+    "id": "1e7bb797-14bf-4c24-ad04-f303b10cc8b3",
+    "email": "testuser@gmail.com",
+    "name": "Lars Grom",
+    "phoneNumber": "+4799999999"
+  },
+  "price": {
+    "currency": "NOK",
+    "comment": "Summary: 1 days x 2600NOK/day = 2600NOK",
+    "price": 1,
+    "discount": 0,
+    "total": 1
+  }
+}

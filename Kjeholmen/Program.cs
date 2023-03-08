@@ -4,7 +4,6 @@ using dotenv.net;
 using Kjeholmen.Services.Api;
 using Kjeholmen.Services.Email;
 using Kjeholmen.Services.Sms;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Kjeholmen;
 

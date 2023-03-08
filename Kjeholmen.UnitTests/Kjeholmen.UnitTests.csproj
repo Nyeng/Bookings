@@ -25,4 +25,15 @@
       <ProjectReference Include="..\Kjeholmen\Kjeholmen.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="Testdata\bestemorhytta.json" />
+      <EmbeddedResource Include="Testdata\bestemorhytta.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <None Remove="Testdata\direct.json" />
+      <EmbeddedResource Include="Testdata\direct.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+    </ItemGroup>
+
 </Project>
