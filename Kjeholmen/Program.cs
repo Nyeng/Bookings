@@ -45,7 +45,7 @@ public abstract class Program
             // Send SMS message
             if (_pollService != null && !string.IsNullOrEmpty(phoneOne))
             {
-                var smsService = new SmsService(_pollService.smsOptions);
+                var smsService = new SmsService(_pollService.SmsOptions);
                 var resp = await smsService.SendSms("Program stopped for some reason! You might want to check it out",
                     phoneOne);
                 Console.WriteLine(resp.Body + "\n" + resp.Status);

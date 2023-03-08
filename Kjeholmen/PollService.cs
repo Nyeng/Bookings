@@ -16,15 +16,15 @@ public class PollService
     private string _infoText;
     private readonly EmailService _emailService;
     private readonly SmsService _smsService;
-    public ISmsServiceOptions smsOptions;
+    public readonly ISmsServiceOptions SmsOptions;
 
     public PollService(ApiClient client, IEmailServiceOptions emailServiceOptions, ISmsServiceOptions smsServiceOptions)
     {
-        smsOptions = smsServiceOptions;
+        SmsOptions = smsServiceOptions;
         _infoText = "";
         _client = client;
         _emailService = new EmailService(emailServiceOptions);
-        _smsService = new SmsService(smsServiceOptions);
+        _smsService = new SmsService(SmsOptions);
     }
 
     public async Task PollOsloFjorden(string phoneOne, string phoneTwo, string fullName)
@@ -77,68 +77,17 @@ public class PollService
                     //Keep looping
                 }
 
-                if (statuskode == 401)
+                switch (statuskode)
                 {
-                    Console.WriteLine("Henter nytt token");
-                    var resp = await _client.GetToken();
-
-                    if (resp.StatusCode != HttpStatusCode.OK)
-                        throw new Exception("Unable to login using the current credentials");
-
-                    var tokenContent = resp.Content.ReadAsStringAsync().Result;
-                    var responseObj = JObject.Parse(tokenContent);
-                    var accessToken = (string)responseObj["access_token"];
-
-                    _client.HttpClient.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", accessToken);
-                    //Don't sleep when logged out
-                    pollingRateMinutes = 100;
-                }
-                else if (statuskode is > 199 and < 300)
-                {
-                    var directFile = await File.ReadAllTextAsync("Requests/direct.json");
-                    directFile = directFile.Replace("{id}", Guid.NewGuid().ToString());
-                    directFile = directFile.Replace("{bookingId}", bookingId);
-
-                    Console.WriteLine("Prøver direct request med: " + directFile);
-
-                    var directResponse = await _client.HttpClient.PostAsync("api/payment/direct",
-                        new StringContent(directFile, Encoding.UTF8, "application/json"));
-
-                    Console.WriteLine("Api payment direct resp" + directResponse.StatusCode);
-                    Console.WriteLine(directResponse.Content.ReadAsStringAsync().Result);
-
-                    var obj = JsonConvert.DeserializeObject<JObject>(directResponse.Content.ReadAsStringAsync().Result);
-                    var providerPaymentId = (string)obj.SelectToken("providerPaymentId");
-
-                    var url =
-                        $"https://friluftsliv.oslofjorden.org/payment?paymentId={providerPaymentId}&serviceId={bookingId}&type=booking";
-
-                    var text =
-                        "Forsøkte å booke Kjeholmen! Følg betalings-url og fullfør bookingen din på denne lenken: (TRYGG LENKE FRA VEGARD): (hvis det feiler bare prøv å book hytta på nytt, den er forhåpentligvis tilgjengelig) \n\nURL: "
-                        + url;
-
-                    Console.WriteLine(text);
-                    try
+                    case 401:
                     {
-                        var smsTask = _smsService.SendSms(text, phoneOne);
-                        var smsTaskTwo = _smsService.SendSms(text, phoneTwo);
-                        var emailTask = _emailService.SendEmailNotification();
-
-                        await Task.WhenAll(smsTask, smsTaskTwo, emailTask);
-
-                        var emailResponse = smsTask.Result;
-                        var smsResponse = emailTask.Result;
-
-                        Console.WriteLine(
-                            $"Email response: {emailResponse.Status} \nSms resp: {smsResponse.StatusCode} {smsResponse.Body} ");
+                        await HandleUnauthorized();
+                        pollingRateMinutes = 100;
+                        break;
                     }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("Error sending sms or email: " + e.Message);
-                    }
-
-                    break;
+                    case > 199 and < 300:
+                        await HandleSuccessfulBooking(bookingId, phoneOne, phoneTwo);
+                        break;
                 }
             }
             catch (Exception e)
@@ -148,6 +97,72 @@ public class PollService
 
             Thread.Sleep(pollingRateMinutes);
         }
+    }
+
+    private async Task HandleSuccessfulBooking(string bookingId, string phoneOne, string phoneTwo)
+    {
+        var directFile = await File.ReadAllTextAsync("Requests/direct.json");
+        directFile = directFile.Replace("{id}", Guid.NewGuid().ToString());
+        directFile = directFile.Replace("{bookingId}", bookingId);
+
+        Console.WriteLine("Prøver direct request med: " + directFile);
+
+        var directResponse = await _client.HttpClient.PostAsync("api/payment/direct",
+            new StringContent(directFile, Encoding.UTF8, "application/json"));
+
+        Console.WriteLine("Api payment direct response" + directResponse.StatusCode);
+
+        if (directResponse.StatusCode is HttpStatusCode.Accepted or HttpStatusCode.OK or HttpStatusCode.Created)
+        {
+            Console.WriteLine(directResponse.Content.ReadAsStringAsync().Result);
+
+            var obj = JsonConvert.DeserializeObject<JObject>(directResponse.Content.ReadAsStringAsync().Result);
+            var providerPaymentId = (string)obj.SelectToken("providerPaymentId");
+
+            var url =
+                $"https://friluftsliv.oslofjorden.org/payment?paymentId={providerPaymentId}&serviceId={bookingId}&type=booking";
+
+            var text =
+                "Forsøkte å booke Kjeholmen! Følg betalings-url og fullfør bookingen din på denne lenken: (TRYGG LENKE FRA VEGARD): (hvis det feiler bare prøv å book hytta på nytt, den er forhåpentligvis tilgjengelig) \n\nURL: "
+                + url;
+
+            Console.WriteLine(text);
+
+            try
+            {
+                var smsTask = _smsService.SendSms(text, phoneOne);
+                var smsTaskTwo = _smsService.SendSms(text, phoneTwo);
+                var emailTask = _emailService.SendEmailNotification();
+
+                Task.WhenAll(smsTask, smsTaskTwo, emailTask).Wait();
+
+                var emailResponse = smsTask.Result;
+                var smsResponse = emailTask.Result;
+
+                Console.WriteLine(
+                    $"Email response: {emailResponse.Status} \nSms resp: {smsResponse.StatusCode} {smsResponse.Body} ");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error sending sms or email: " + e.Message);
+            }
+        }
+    }
+
+    private async Task HandleUnauthorized()
+    {
+        Console.WriteLine("Henter nytt token");
+        var resp = await _client.GetToken();
+
+        if (resp.StatusCode != HttpStatusCode.OK)
+            throw new Exception("Unable to login using the current credentials");
+
+        var tokenContent = resp.Content.ReadAsStringAsync().Result;
+        var responseObj = JObject.Parse(tokenContent);
+        var accessToken = (string)responseObj["access_token"];
+
+        _client.HttpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", accessToken);
     }
 
     private string GeneratePayLoad(string bookingId, string fullName, string phoneTwo)
